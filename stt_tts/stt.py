@@ -1,5 +1,4 @@
-import sounddevice as sd
-import soundfile as sf
+
 from faster_whisper import WhisperModel
 
 SAMPLE_RATE = 16000
@@ -7,6 +6,8 @@ CHANNELS = 1
 
 
 class SpeechToText:
+    import sounddevice as sd
+    import soundfile as sf
 
     def __init__(self, model_size="base"):
         self.model = WhisperModel(
