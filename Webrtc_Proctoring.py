@@ -12,7 +12,7 @@ queue on each rerun instead (see drain_events()).
 import queue
 import threading
 
-from proctoring import ProctoringMonitor, YOLO_AVAILABLE
+from Proctoring import ProctoringMonitor, YOLO_AVAILABLE
 
 try:
     from streamlit_webrtc import VideoProcessorBase, webrtc_streamer, RTCConfiguration
