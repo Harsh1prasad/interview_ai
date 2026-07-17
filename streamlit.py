@@ -1,11 +1,14 @@
 import os
 import re
+import time
 import streamlit as st
 
 from question_generation import question_generation
 from evaluator import ans_evaluation
 from stt_tts.stt import SpeechToText
 from stt_tts.tts import TextToSpeech
+from proctoring import YOLO_AVAILABLE
+from webrtc_proctor import WEBRTC_AVAILABLE, WEBRTC_ERROR, start_proctoring_stream, drain_events
 
 st.set_page_config(page_title="AI Interview Prep", layout="centered")
 st.title("AI Interview Prep")
@@ -33,6 +36,21 @@ def get_tts_engine():
         return None
 
 
+@st.cache_resource
+def get_yolo_model():
+    """Load the phone/object-detection model once and reuse it across all
+    proctoring sessions, instead of re-downloading/loading YOLO weights
+    every rerun."""
+    if not YOLO_AVAILABLE:
+        return None
+    try:
+        from ultralytics import YOLO
+        return YOLO("yolov8n.pt")
+    except Exception as e:
+        st.session_state["_yolo_error"] = str(e)
+        return None
+
+
 # ---- session state setup ------------------------------------------------
 if "questions" not in st.session_state:
     st.session_state.questions = []
@@ -42,6 +60,8 @@ if "evaluations" not in st.session_state:
     st.session_state.evaluations = []
 if "pending_transcript" not in st.session_state:
     st.session_state.pending_transcript = ""
+if "proctoring_events" not in st.session_state:
+    st.session_state.proctoring_events = []
 
 # ---- step 1: upload resume + JD, generate questions ----------------------
 resume = st.file_uploader("Upload resume (PDF)", type=["pdf"])
@@ -63,6 +83,44 @@ if resume and jd and st.button("Generate questions"):
 # ---- step 2: walk through questions, collect + evaluate answers ----------
 if st.session_state.questions:
     st.subheader("Interview")
+
+    # ---- proctoring: live webcam monitoring ------------------------------
+    # Uses the BROWSER's camera via WebRTC (same reasoning as audio_input
+    # above) - cv2.VideoCapture(0) would try to open a webcam on the
+    # server, which doesn't exist when this app is deployed.
+    with st.expander("🎥 Proctoring", expanded=True):
+        if not WEBRTC_AVAILABLE:
+            st.warning(
+                "Webcam proctoring isn't available right now "
+                f"({WEBRTC_ERROR}). The interview will continue without it."
+            )
+        else:
+            st.caption(
+                "Stay visible and facing the screen. Flags: face not visible, "
+                "multiple faces, looking away, phone/device detected."
+            )
+            yolo_model = get_yolo_model()
+            webrtc_ctx = start_proctoring_stream(key="proctoring_stream", yolo_model=yolo_model)
+
+            # Drain any violations detected since the last rerun. This runs
+            # on every rerun (button clicks, answer submissions, etc.), so
+            # the log below won't update instantly frame-by-frame, but it
+            # will always be current by the time you submit an answer.
+            new_events = drain_events(webrtc_ctx)
+            if new_events:
+                st.session_state.proctoring_events.extend(new_events)
+
+            if st.session_state.proctoring_events:
+                recent = st.session_state.proctoring_events[-5:]
+                st.warning(
+                    "⚠️ " + " | ".join(
+                        f"{e['type'].replace('_', ' ')}" for e in recent
+                    )
+                )
+                st.caption(f"{len(st.session_state.proctoring_events)} flag(s) so far this session.")
+            elif webrtc_ctx is not None and webrtc_ctx.state.playing:
+                st.success("No proctoring flags yet.")
+
     idx = st.session_state.current_q
     total = len(st.session_state.questions)
 
@@ -170,6 +228,18 @@ if st.session_state.questions:
 # ---- step 3: feedback summary --------------------------------------------
 if st.session_state.evaluations:
     st.subheader("Feedback summary")
+
+    if st.session_state.proctoring_events:
+        st.subheader("Proctoring report")
+        counts = {}
+        for ev in st.session_state.proctoring_events:
+            counts[ev["type"]] = counts.get(ev["type"], 0) + 1
+        for vtype, count in sorted(counts.items(), key=lambda kv: -kv[1]):
+            st.write(f"- **{vtype.replace('_', ' ').title()}**: {count} time(s)")
+        with st.expander("Full proctoring timeline"):
+            for ev in st.session_state.proctoring_events:
+                st.write(f"`{time.strftime('%H:%M:%S', time.localtime(ev['timestamp']))}` — {ev['message']}")
+
     for i, e in enumerate(st.session_state.evaluations, start=1):
         with st.expander(f"Q{i}: {e['question']}"):
             st.write(f"**Your answer:** {e['answer']}")

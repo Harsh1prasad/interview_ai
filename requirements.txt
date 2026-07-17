@@ -42,8 +42,10 @@ faster-whisper
 
 
 
-opencv-python
+opencv-python-headless
 mediapipe
+streamlit-webrtc
+av
 
 
 
