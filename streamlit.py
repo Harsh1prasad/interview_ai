@@ -4,7 +4,7 @@ import streamlit as st
 
 from question_generation import question_generation
 from evaluator import ans_evaluation
-from stt_tts.stt import SpeechToText, MIC_AVAILABLE
+from stt_tts.stt import SpeechToText
 from stt_tts.tts import TextToSpeech
 
 st.set_page_config(page_title="AI Interview Prep", layout="centered")
@@ -43,13 +43,6 @@ if "evaluations" not in st.session_state:
 if "pending_transcript" not in st.session_state:
     st.session_state.pending_transcript = ""
 
-if not MIC_AVAILABLE:
-    st.info(
-        "🎙️ Live microphone recording isn't available in this environment. "
-        "You can still upload an audio file to transcribe, or just type your answers.",
-        icon="ℹ️",
-    )
-
 # ---- step 1: upload resume + JD, generate questions ----------------------
 resume = st.file_uploader("Upload resume (PDF)", type=["pdf"])
 jd = st.file_uploader("Upload job description (PDF)", type=["pdf"])
@@ -81,59 +74,47 @@ if st.session_state.questions:
         st.write(f"**Question {idx + 1} of {total}**")
         st.write(question_text)
 
-        col1, col2, col3 = st.columns([1, 1, 1])
+        if st.button("🔊 Read question aloud", key=f"tts_{idx}"):
+            tts = get_tts_engine()
+            if tts is None or not tts.available:
+                st.warning(
+                    "Text-to-speech isn't available here - here's the question "
+                    f"in text instead:\n\n**{clean_question}**"
+                )
+            else:
+                with st.spinner("Speaking..."):
+                    tts.speak(clean_question)
 
-        with col1:
-            if st.button("🔊 Read question aloud", key=f"tts_{idx}"):
-                tts = get_tts_engine()
-                if tts is None or not tts.available:
-                    st.warning(
-                        "Text-to-speech isn't available here - here's the question "
-                        f"in text instead:\n\n**{clean_question}**"
-                    )
-                else:
-                    with st.spinner("Speaking..."):
-                        tts.speak(clean_question)
+        # ---- live recording via the BROWSER's microphone -----------------
+        # st.audio_input captures audio in the user's browser (HTML5 Media
+        # Recorder API) and sends the bytes back to this server. Unlike
+        # `sounddevice`, this does NOT need PortAudio or a mic attached to
+        # wherever the app is hosted, so it works both locally and deployed
+        # (e.g. Streamlit Community Cloud). Requires streamlit >= 1.34.0.
+        st.write("🎙️ Record your answer:")
+        audio_value = st.audio_input("Record your answer", key=f"audio_input_{idx}", label_visibility="collapsed")
 
-        with col2:
-            record_seconds = st.number_input(
-                "Recording length (sec)",
-                min_value=5,
-                max_value=60,
-                value=15,
-                step=5,
-                key=f"dur_{idx}",
-            )
-
-        with col3:
-            record_clicked = st.button(
-                "🎙️ Record answer",
-                key=f"record_{idx}",
-                disabled=not MIC_AVAILABLE,
-            )
-            if record_clicked and MIC_AVAILABLE:
+        if audio_value is not None:
+            if st.button("Transcribe recording", key=f"transcribe_live_{idx}"):
                 stt = get_stt_engine()
                 if stt is None:
                     st.error("Speech-to-text engine failed to load. Please type your answer below.")
                 else:
                     audio_path = f"answer_{idx}.wav"
                     try:
-                        with st.spinner(f"Recording for {record_seconds}s... speak now"):
-                            stt.record_audio(duration=int(record_seconds), filename=audio_path)
+                        with open(audio_path, "wb") as f:
+                            f.write(audio_value.getbuffer())
                         with st.spinner("Transcribing..."):
                             transcript = stt.transcribe(audio_path)
                         st.session_state.pending_transcript = transcript
                     except Exception as e:
-                        st.error(f"Recording failed: {e}. Please type your answer instead.")
+                        st.error(f"Transcription failed: {e}. Please type your answer instead.")
                     finally:
-                        # clean up the temp audio file
                         if os.path.exists(audio_path):
                             os.remove(audio_path)
                     st.rerun()
 
         # ---- fallback: upload a pre-recorded audio file to transcribe ----
-        # Transcription only needs a file on disk, not a live input device,
-        # so this works even when MIC_AVAILABLE is False.
         with st.expander("Or upload an audio file of your answer instead"):
             uploaded_audio = st.file_uploader(
                 "Audio file (wav, mp3, m4a)",
