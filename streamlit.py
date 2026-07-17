@@ -7,8 +7,8 @@ from question_generation import question_generation
 from evaluator import ans_evaluation
 from stt_tts.stt import SpeechToText
 from stt_tts.tts import TextToSpeech
-from proctoring import YOLO_AVAILABLE
-from webrtc_proctor import WEBRTC_AVAILABLE, WEBRTC_ERROR, start_proctoring_stream, drain_events
+from Proctoring import YOLO_AVAILABLE
+from Webrtc_Proctoring import WEBRTC_AVAILABLE, WEBRTC_ERROR, start_proctoring_stream, drain_events
 
 st.set_page_config(page_title="AI Interview Prep", layout="centered")
 st.title("AI Interview Prep")
