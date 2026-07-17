@@ -1,0 +1,89 @@
+# PDF and Document Processing
+
+pypdf
+python-docx
+PyMuPDF
+
+# Text-to-Speech
+pyttsx3
+
+# Environment Variables
+python-dotenv
+
+# LLM Integration
+groq
+langchain
+langchain-core
+langchain-community
+langchain-groq
+
+
+
+# Frontend
+
+
+
+streamlit
+
+
+
+# Speech-to-Text and Audio
+
+
+
+SpeechRecognition
+sounddevice
+soundfile
+faster-whisper
+
+
+
+# Computer Vision and Proctoring
+
+
+
+opencv-python
+mediapipe
+
+
+
+# Object Detection
+
+
+
+ultralytics
+
+
+
+# Machine Learning and NLP
+
+
+
+scikit-learn
+sentence-transformers
+
+
+
+# Data Processing
+
+
+
+numpy
+pandas
+
+
+
+# Visualization
+
+
+
+matplotlib
+plotly
+
+
+
+# Report Generation
+
+
+
+reportlab
