@@ -1,13 +1,25 @@
-
 from faster_whisper import WhisperModel
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
 
+# `sounddevice` needs the system PortAudio library and a real input device.
+# On headless hosts (e.g. Streamlit Community Cloud) neither exists, and the
+# import itself raises OSError, which would otherwise crash the whole app at
+# startup (since streamlit.py does `from stt_tts.stt import SpeechToText`).
+# Import it defensively here and expose a flag the UI can check.
+try:
+    import sounddevice as sd
+    MIC_AVAILABLE = True
+    MIC_ERROR = None
+except (OSError, ImportError) as e:
+    sd = None
+    MIC_AVAILABLE = False
+    MIC_ERROR = str(e)
+    print(f"[stt] Live microphone recording unavailable: {e}")
+
 
 class SpeechToText:
-    import sounddevice as sd
-    import soundfile as sf
 
     def __init__(self, model_size="base"):
         self.model = WhisperModel(
@@ -17,6 +29,14 @@ class SpeechToText:
         )
 
     def record_audio(self, duration=10, filename="answer.wav"):
+        if not MIC_AVAILABLE:
+            raise RuntimeError(
+                "Microphone recording isn't available in this environment "
+                "(no audio input device / PortAudio library found). "
+                "Upload an audio file instead, or type your answer."
+            )
+
+        import soundfile as sf
 
         print("Recording...")
 
@@ -36,6 +56,8 @@ class SpeechToText:
         return filename
 
     def transcribe(self, audio_path):
+        """Works regardless of MIC_AVAILABLE - it only needs an audio file on
+        disk (from a live recording OR an uploaded file), not a live device."""
 
         segments, _ = self.model.transcribe(audio_path)
 
