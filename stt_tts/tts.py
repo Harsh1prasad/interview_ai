@@ -1,8 +1,3 @@
-# `pyttsx3` wraps a system TTS engine (SAPI5 on Windows, espeak/nsss on
-# Linux/Mac). On headless hosts (e.g. Streamlit Community Cloud) there's
-# often no such engine installed, and either the import or `.init()` can
-# raise. Guard both so the app doesn't crash - it just falls back to
-# showing the question as text instead of speaking it.
 try:
     import pyttsx3
     _PYTTSX3_IMPORTED = True
@@ -10,7 +5,6 @@ except ImportError as e:
     pyttsx3 = None
     _PYTTSX3_IMPORTED = False
     print(f"[tts] pyttsx3 not installed: {e}")
-
 
 class TextToSpeech:
 

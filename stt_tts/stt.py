@@ -3,11 +3,6 @@ from faster_whisper import WhisperModel
 SAMPLE_RATE = 16000
 CHANNELS = 1
 
-# `sounddevice` needs the system PortAudio library and a real input device.
-# On headless hosts (e.g. Streamlit Community Cloud) neither exists, and the
-# import itself raises OSError, which would otherwise crash the whole app at
-# startup (since streamlit.py does `from stt_tts.stt import SpeechToText`).
-# Import it defensively here and expose a flag the UI can check.
 try:
     import sounddevice as sd
     MIC_AVAILABLE = True
