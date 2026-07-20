@@ -1,6 +1,3 @@
-python-3.12
-
-
 # PDF and Document Processing
 
 pypdf
@@ -46,7 +43,7 @@ faster-whisper
 
 
 opencv-python-headless
-mediapipe==0.10.21
+mediapipe
 streamlit-webrtc
 av
 
