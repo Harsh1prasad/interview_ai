@@ -43,7 +43,7 @@ faster-whisper
 
 
 opencv-python-headless
-mediapipe
+mediapipe==0.10.21
 streamlit-webrtc
 av
 
